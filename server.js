@@ -1,64 +1,93 @@
-// first install express and mysql: npm install express mysql2
+import express from 'express';
+import mysql from 'mysql2/promise'; // Use promise-based mysql2
+import { promises as fs } from 'fs'; // Use fs promises to read files
+import path from 'path';
 
-const express = require('express');
-const mysql = require('mysql2');
 const app = express();
 const port = 3000;
-const fs = require('fs');
 
-/*
-const express = require('express');: Haalt de express-module op, een framework dat wordt gebruikt om de Node.js-server te bouwen.
-const mysql = require('mysql2');: Importeert de mysql2-module, die wordt gebruikt om met een MySQL-database te communiceren.
-const app = express();: Initialiseert de Express-applicatie.
-const port = 3000;: Definieert de poort waarop de server luistert.
-const fs = require('fs');: Importeert de fs-module om bestanden te lezen, in dit geval het SQL-bestand.
-*/
+// Use __dirname safely in ES6
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Create a connection to the database
-const connection = mysql.createConnection({
-    host: "buys6kr6vhxzkd1eyzlw-mysql.services.clever-cloud.com",
-    user: "udewyroo3ui0zwca",
-    database: "buys6kr6vhxzkd1eyzlw",
-    password: "Q7f0I2r2XvSl3cTZdtMI"
-});
+// Create a connection to the database using async/await
+const connectionConfig = {
+    host: "localhost",  // Assuming you're using a local database
+    user: "root",
+    database: "SPECTRUM",
+    password: ""
+};
 
-// Middleware for serving static files
-app.use(express.static('public')); //Dit geeft de Express-app toegang tot de bestanden in de map public (zoals je HTML, CSS en client-side JavaScript-bestanden).
+// Serve static files from the "public" folder
+app.use(express.static(path.join(__dirname, 'public')));
 
-// API route to get fruit price by name
-app.get('/api/fruit', (req, res) => {
-    const fruitName = req.query.name;
-    
-    console.log(`Requested fruit: ${fruitName}`); // Log wat er wordt opgevraagd
-  
-    if (!fruitName) {
-      console.error('No fruit name provided!');
-      return res.status(400).json({ error: 'Fruit name is required' });
+// Route to get all fruits for dropdown
+app.get('/api/fruits', async (req, res) => {
+    try {
+        // Log the start of the query
+        console.log('Fetching all fruits...');
+
+        const query = await fs.readFile('./queries/getAllFruits.sql', 'utf-8');
+        const connection = await mysql.createConnection(connectionConfig);
+
+        // Execute query to get all fruits
+        const [results] = await connection.query(query);
+        await connection.end();
+
+        if (results.length > 0) {
+            // Return all fruits as JSON
+            console.log('Fruits fetched successfully:', results);
+            res.json(results);
+        } else {
+            console.log('No fruits found');
+            res.status(404).json({ error: 'No fruits found' });
+        }
+    } catch (error) {
+        // Log the error stack for debugging
+        console.error('Error fetching fruits:', error.stack || error);
+        res.status(500).json({ error: 'Database query error', details: error.message });
     }
-
-    // Controleer of het SQL-bestand correct wordt gelezen
-    const query = fs.readFileSync('./queries/getFruitPrice.sql', 'utf-8');
-    console.log('SQL Query:', query); // Log de query
-
-    // Voer de query uit met fruitName als parameter
-    connection.query(query, [fruitName], (error, results) => {
-        // Voert de SQL-query uit met fruitName als parameter. Als de query slaagt en resultaten oplevert, worden de gegevens van het fruit teruggestuurd naar de client. Als de query mislukt of geen resultaten oplevert, wordt een foutmelding teruggestuurd.
-      if (error) {
-        console.error('Error executing query:', error); // Meer gedetailleerde foutmelding loggen
-        return res.status(500).json({ error: 'Database query error', details: error.message });
-      }
-  
-      if (results.length > 0) {
-        console.log('Fruit found:', results[0]); // Log het resultaat van de query
-        res.json(results[0]);
-      } else {
-        console.log('No fruit data found');
-        res.status(404).json({ error: 'Fruit not found' });
-      }
-    });
 });
 
-  
+// Route to get fruit price by name
+app.get('/api/fruit', async (req, res) => {
+  const { name: fruitName } = req.query;
+
+  if (!fruitName) {
+      return res.status(400).json({ error: 'Fruit name is required' });
+  }
+
+  try {
+      // Log the fruit name being requested
+      console.log(`Fruit requested: ${fruitName}`);
+
+      const query = await fs.readFile('./queries/getFruitPrice.sql', 'utf-8');
+
+      // Log the SQL query before execution
+      console.log('SQL query:', query);
+
+      const connection = await mysql.createConnection(connectionConfig);
+
+      // Log the parameters passed into the query
+      console.log(`Executing query with parameter: ${fruitName}`);
+
+      const [results] = await connection.query(query, [fruitName]);
+      await connection.end();
+
+      if (results.length > 0) {
+          console.log('Query successful, returning data:', results[0]); // Log successful query results
+          res.json(results[0]);
+      } else {
+          console.log(`No data found for fruit: ${fruitName}`);
+          res.status(404).json({ error: 'Fruit not found' });
+      }
+  } catch (error) {
+      // Log the error stack for debugging
+      console.error('Error executing query:', error.stack || error);
+      res.status(500).json({ error: 'Database query error', details: error.message });
+  }
+});
 
 // Start the server
 app.listen(port, () => {

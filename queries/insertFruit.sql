@@ -13,3 +13,29 @@ INSERT INTO fruits (name, price) VALUES
 ('Papayas', 2.79);
 
 select * from fruits;
+
+LTER TABLE fruits ADD COLUMN image VARCHAR(255);
+
+UPDATE fruits
+SET image = '🍊'
+WHERE name = 'Oranges';
+
+UPDATE fruits
+SET image = '🍎'
+WHERE name = 'Apples';
+
+UPDATE fruits
+SET image = '🍌'
+WHERE name = 'Bananas';
+
+UPDATE fruits
+SET image = '🍒'
+WHERE name = 'Cherries';
+
+UPDATE fruits
+SET image = '🥭'
+WHERE name = 'Mangoes';
+
+UPDATE fruits
+SET image = '🍈'
+WHERE name = 'Papayas';
